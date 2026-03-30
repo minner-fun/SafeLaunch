@@ -27,7 +27,7 @@ contract MLaunch is ERC721, IMLaunch {
     string internal s_symbol = 'MLAUNCH';
     // string public s_baseURI;
 
-    address public s_memecoinImplementation;
+    // address public s_memecoinImplementation;
     // address public s_memecoinTreasuryImplementation;
     
 
@@ -52,8 +52,8 @@ contract MLaunch is ERC721, IMLaunch {
         _;
     }
 
-    constructor(address _memecoinImplementation) ERC721(s_name, s_symbol) {
-        s_memecoinImplementation = _memecoinImplementation;
+    constructor() ERC721(s_name, s_symbol) {
+        // s_memecoinImplementation = _memecoinImplementation;
         // s_baseURI = _baseURI;
     }
 
