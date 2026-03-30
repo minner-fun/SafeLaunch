@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {ERC721} from "@solady/tokens/ERC721.sol";
-import {Initializable} from "@solady/utils/Initializable.sol";
-import {Ownable} from "@solady/auth/Ownable.sol";
-import {LibClone} from "@solady/utils/LibClone.sol";
-import {LibString} from "@solady/utils/LibString.sol";
+// import {ERC721} from "@solady/tokens/ERC721.sol";
+// import {Initializable} from "@solady/utils/Initializable.sol";
+// import {Ownable} from "@solady/auth/Ownable.sol";
+// import {LibClone} from "@solady/utils/LibClone.sol";
+// import {LibString} from "@solady/utils/LibString.sol";
 
 import {IMLaunch} from "src/interfaces/IMLaunch.sol";
 import {TokenSupply} from "src/contracts/libraries/TokenSupply.sol";
+import {Memecoin} from "src/contracts/Memecoin.sol";
 
 import {PositionManager} from "src/contracts/PositionManager.sol";
 import {IMemecoin} from "src/interfaces/IMemecoin.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 
-contract MLaunch is ERC721, IMLaunch, Initializable, Ownable {
+contract MLaunch is ERC721, IMLaunch {
     uint256 public constant MAX_SCHEDULE_DURATION = 30 days;
     uint256 public constant MAX_FAIR_LAUNCH_TOKENS = TokenSupply.INITIAL_SUPPLY;
 
@@ -23,15 +25,15 @@ contract MLaunch is ERC721, IMLaunch, Initializable, Ownable {
 
     string internal s_name = 'Mlaunch';
     string internal s_symbol = 'MLAUNCH';
-    string public s_baseURI;
+    // string public s_baseURI;
 
     address public s_memecoinImplementation;
-    address public s_memecoinTreasuryImplementation;
+    // address public s_memecoinTreasuryImplementation;
     
 
     struct TokenInfo {
         address memecoin;
-        address payable memecoinTreasury;
+        // address payable memecoinTreasury;
     }
 
     mapping(address _memecoin => uint256 _tokenId) public s_tokenId;
@@ -50,26 +52,16 @@ contract MLaunch is ERC721, IMLaunch, Initializable, Ownable {
         _;
     }
 
-    constructor(address _memecoinImplementation, string memory _baseURI) {
+    constructor(address _memecoinImplementation) ERC721(s_name, s_symbol) {
         s_memecoinImplementation = _memecoinImplementation;
-        s_baseURI = _baseURI;
-        _initializeOwner(msg.sender);
-    }
-
-    function initialize(PositionManager _positionManager, address _memecoinTreasuryImplementation)
-        external
-        onlyOwner
-        initializer
-    {
-        s_positionManager = _positionManager;
-        s_memecoinTreasuryImplementation = _memecoinTreasuryImplementation;
+        // s_baseURI = _baseURI;
     }
 
     function mlaunch(PositionManager.MLaunchParams calldata _params)
         external
         override
         onlyPositionManager
-        returns (address memecoin_, address payable memecoinTreasury_, uint256 tokenId_)
+        returns (address memecoin_, uint256 tokenId_)
     {
         if (_params.mlaunchAt > block.timestamp + MAX_SCHEDULE_DURATION) {
             revert MLaunch_InvalidMlaunchSchedule();
@@ -86,16 +78,14 @@ contract MLaunch is ERC721, IMLaunch, Initializable, Ownable {
 
         _mint(_params.creator, tokenId_);
 
-        memecoin_ = LibClone.cloneDeterministic(s_memecoinImplementation, bytes32(tokenId_));
-        s_tokenId[memecoin_] = tokenId_;
-        IMemecoin _memecoin = IMemecoin(memecoin_);
-        _memecoin.initialize(_params.name, _params.symbol, _params.tokenUri);
+        // memecoin_ = LibClone.cloneDeterministic(s_memecoinImplementation, bytes32(tokenId_));
+        Memecoin _memecoin = new Memecoin(_params.name, _params.symbol);  
+        // IMemecoin _memecoin = IMemecoin(memecoin_);
+        // _memecoin.mint(address(s_positionManager), TokenSupply.INITIAL_SUPPLY);
 
-        memecoinTreasury_ = payable(LibClone.cloneDeterministic(s_memecoinTreasuryImplementation, bytes32(tokenId_)));
-
-        s_tokenInfo[tokenId_] = TokenInfo(memecoin_, memecoinTreasury_);
-
-        _memecoin.mint(address(s_positionManager), TokenSupply.INITIAL_SUPPLY);
+        memecoin_ = address(_memecoin);
+        // s_tokenId[memecoin_] = tokenId_;
+        // s_tokenInfo[tokenId_] = TokenInfo(memecoin_);
     }
 
     function name() public view override returns (string memory){
@@ -106,14 +96,14 @@ contract MLaunch is ERC721, IMLaunch, Initializable, Ownable {
         return s_symbol;
     }
 
-    function tokenURI(uint _tokenId) public view override returns (string memory){
-        if (_tokenId == 0 || _tokenId >= s_nextTokenId){
-            revert MLaunch_TokenDoseNotExist();
-        }
-        if (bytes(s_baseURI).length == 0){
-            return IMemecoin(s_tokenInfo[_tokenId].memecoin).tokenURI();
-        }
-        return LibString.concat(s_baseURI, LibString.toString(_tokenId));
-    }
+    // function tokenURI(uint _tokenId) public view override returns (string memory){
+    //     if (_tokenId == 0 || _tokenId >= s_nextTokenId){
+    //         revert MLaunch_TokenDoseNotExist();
+    //     }
+    //     if (bytes(s_baseURI).length == 0){
+    //         return IMemecoin(s_tokenInfo[_tokenId].memecoin).tokenURI();
+    //     }
+    //     return LibString.concat(s_baseURI, LibString.toString(_tokenId));
+    // }
 
 }
