@@ -44,6 +44,7 @@ contract MLaunch is ERC721, IMLaunch {
     error MLaunch_CallerIsNotPositionManager();
     error MLaunch_TokenDoseNotExist();
 
+    event MemecoinCreated(address _add);
 
     modifier onlyPositionManager(){
         if(msg.sender != address(s_positionManager)){
@@ -84,8 +85,9 @@ contract MLaunch is ERC721, IMLaunch {
         // _memecoin.mint(address(s_positionManager), TokenSupply.INITIAL_SUPPLY);
 
         memecoin_ = address(_memecoin);
-        // s_tokenId[memecoin_] = tokenId_;
-        // s_tokenInfo[tokenId_] = TokenInfo(memecoin_);
+        s_tokenId[memecoin_] = tokenId_;
+        s_tokenInfo[tokenId_] = TokenInfo(memecoin_);
+        emit MemecoinCreated(memecoin_);
     }
 
     function name() public view override returns (string memory){

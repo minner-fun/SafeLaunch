@@ -19,5 +19,14 @@
       "name": "v0.1.26",
       "rev": "acd959aa4bd04720d640bf4e6a5c71037510cc4b"
     }
+  },
+  "lib\\v4-core": {
+    "tag": {
+      "name": "v4.0.0",
+      "rev": "e50237c43811bd9b526eff40f26772152a42daba"
+    }
+  },
+  "lib\\v4-periphery": {
+    "rev": "04263e9a7a8f9e9ddae0e703315f5ccd2ecb8a97"
   }
 }
