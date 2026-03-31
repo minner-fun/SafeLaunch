@@ -4,7 +4,9 @@ pragma solidity ^0.8.26;
 import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary, toBeforeSwapDelta} from '@uniswap/v4-core/src/types/BeforeSwapDelta.sol';
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
-import {Hooks, IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
+import {IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
+import {Hooks} from 'src/contracts/libraries/Hooks.sol';
+
 import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
@@ -15,6 +17,7 @@ import {BaseHook} from '@uniswap/v4-periphery/src/base/hooks/BaseHook.sol';
 
 import {IMLaunch} from "src/interfaces/IMLaunch.sol";
 
+import {SwapParams, ModifyLiquidityParams} from './types/PoolOperation.sol';
 
 contract PositionManager{
 
@@ -22,28 +25,31 @@ contract PositionManager{
     struct MLaunchParams {
         string name;
         string symbol;
-        string tokenUri;
+        // string tokenUri;
         uint256 initialTokenFairLaunch;
         // uint premineAmount;
         address creator;
-        uint24 creatorFeeAllocation;
+        // uint24 creatorFeeAllocation;
         uint256 mlaunchAt;
-        bytes initialPriceParams;
-        bytes feeCalculatorParams;
+        // bytes initialPriceParams;
+        // bytes feeCalculatorParams;
     }
+
+    mapping(PoolId => mapping (string => uint)) public counts;
 
     address nativeToken = address(0);
     IMLaunch public mlaunchContract;
     IPoolManager public immutable poolManager;
 
 
-    // modifier onlyPoolManager() {
-    //     if (msg.sender != address(poolManager)) revert NotPoolManager();
-    //     _;
-    // }
-
     event PoolCreated(PoolId indexed _poolId, address _memecoin, uint _tokenId, bool _currencyFlipped, MLaunchParams _params);
+    error HookNotImplemented();
+    error NotPoolManager();
 
+    modifier onlyPoolManager() {
+        if (msg.sender != address(poolManager)) revert NotPoolManager();
+        _;
+    }
 
     constructor(address _poolManager) {
         poolManager = IPoolManager(_poolManager);
@@ -58,12 +64,12 @@ contract PositionManager{
         return Hooks.Permissions({
             beforeInitialize: false,
             afterInitialize: false,
-            beforeAddLiquidity: false,
+            beforeAddLiquidity: true,
             afterAddLiquidity: false,
-            beforeRemoveLiquidity: false,
+            beforeRemoveLiquidity: true,
             afterRemoveLiquidity: false,
             beforeSwap: true,
-            afterSwap: false,
+            afterSwap: true,
             beforeDonate: false,
             afterDonate: false,
             beforeSwapReturnDelta: false,
@@ -124,10 +130,11 @@ contract PositionManager{
         
         // // Initialize our memecoin with the sqrtPriceX96
         // // 初始化我们的memecoin与sqrtPriceX96， sqrtPriceX96表示价格的开方后乘以2的96次方
-        // int24 initialTick = poolManager.initialize(   // 初始化池，返回初始tick
-        //     _poolKey,
-        //     sqrtPriceX96
-        // );
+        int24 initialTick = poolManager.initialize(   // 初始化池，返回初始tick
+            _poolKey,
+            // sqrtPriceX96
+            1e6 * (1 << 96)
+        );
         
 
         // fairLaunch.createPosition({
@@ -153,109 +160,109 @@ contract PositionManager{
     }
 
 
-    //     function beforeInitialize(
-    //     address sender,
-    //     PoolKey calldata key,
-    //     uint160 sqrtPriceX96
-    // ) external onlyPoolManager returns (bytes4) {
-    //     revert HookNotImplemented();
-    // }
+    function beforeInitialize(
+        address sender,
+        PoolKey calldata key,
+        uint160 sqrtPriceX96
+    ) external onlyPoolManager returns (bytes4) {
+        revert HookNotImplemented();
+    }
 
-    // function afterInitialize(
-    //     address sender,
-    //     PoolKey calldata key,
-    //     uint160 sqrtPriceX96,
-    //     int24 tick
-    // ) external onlyPoolManager returns (bytes4) {
-    //     revert HookNotImplemented();
-    // }
+    function afterInitialize(
+        address sender,
+        PoolKey calldata key,
+        uint160 sqrtPriceX96,
+        int24 tick
+    ) external onlyPoolManager returns (bytes4) {
+        revert HookNotImplemented();
+    }
 
-    // function beforeSwap(
-    //     address sender,
-    //     PoolKey calldata key,
-    //     SwapParams calldata params,
-    //     bytes calldata hookData
-    // ) external onlyPoolManager returns (bytes4, BeforeSwapDelta, uint24) {
-    //     counts[key.toId()]["beforeSwap"] += 1;
-    //     return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
-    // }
+    function beforeSwap(
+        address sender,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        bytes calldata hookData
+    ) external onlyPoolManager returns (bytes4, BeforeSwapDelta, uint24) {
+        counts[key.toId()]["beforeSwap"] += 1;
+        return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
+    }
 
-    // function afterSwap(
-    //     address sender,
-    //     PoolKey calldata key,
-    //     SwapParams calldata params,
-    //     BalanceDelta delta,
-    //     bytes calldata hookData
-    // ) external onlyPoolManager returns (bytes4, int128) {
-    //     counts[key.toId()]["afterSwap"] += 1;
-    //     return (this.afterSwap.selector, 0);
-    // }
+    function afterSwap(
+        address sender,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        BalanceDelta delta,
+        bytes calldata hookData
+    ) external onlyPoolManager returns (bytes4, int128) {
+        counts[key.toId()]["afterSwap"] += 1;
+        return (this.afterSwap.selector, 0);
+    }
 
-    // function beforeAddLiquidity(
-    //     address sender,
-    //     PoolKey calldata key,
-    //     ModifyLiquidityParams calldata params,
-    //     bytes calldata hookData
-    // ) external onlyPoolManager returns (bytes4) {
-    //     counts[key.toId()]["beforeAddLiquidity"] += 1;
-    //     return this.beforeAddLiquidity.selector;
-    // }
+    function beforeAddLiquidity(
+        address sender,
+        PoolKey calldata key,
+        ModifyLiquidityParams calldata params,
+        bytes calldata hookData
+    ) external onlyPoolManager returns (bytes4) {
+        counts[key.toId()]["beforeAddLiquidity"] += 1;
+        return this.beforeAddLiquidity.selector;
+    }
 
-    // function afterAddLiquidity(
-    //     address sender,
-    //     PoolKey calldata key,
-    //     ModifyLiquidityParams calldata params,
-    //     BalanceDelta delta,
-    //     BalanceDelta feesAccrued,
-    //     bytes calldata hookData
-    // ) external onlyPoolManager returns (bytes4, BalanceDelta) {
-    //     revert HookNotImplemented();
-    // }
+    function afterAddLiquidity(
+        address sender,
+        PoolKey calldata key,
+        ModifyLiquidityParams calldata params,
+        BalanceDelta delta,
+        BalanceDelta feesAccrued,
+        bytes calldata hookData
+    ) external onlyPoolManager returns (bytes4, BalanceDelta) {
+        revert HookNotImplemented();
+    }
 
-    // function beforeRemoveLiquidity(
-    //     address sender,
-    //     PoolKey calldata key,
-    //     ModifyLiquidityParams calldata params,
-    //     bytes calldata hookData
-    // ) external onlyPoolManager returns (bytes4) {
-    //     counts[key.toId()]["beforeRemoveLiquidity"] += 1;
-    //     return this.beforeRemoveLiquidity.selector;
-    // }
+    function beforeRemoveLiquidity(
+        address sender,
+        PoolKey calldata key,
+        ModifyLiquidityParams calldata params,
+        bytes calldata hookData
+    ) external onlyPoolManager returns (bytes4) {
+        counts[key.toId()]["beforeRemoveLiquidity"] += 1;
+        return this.beforeRemoveLiquidity.selector;
+    }
 
-    // function afterRemoveLiquidity(
-    //     address sender,
-    //     PoolKey calldata key,
-    //     ModifyLiquidityParams calldata params,
-    //     BalanceDelta delta,
-    //     BalanceDelta feesAccrued,
-    //     bytes calldata hookData
-    // ) external onlyPoolManager returns (bytes4, BalanceDelta) {
-    //     revert HookNotImplemented();
-    // }
+    function afterRemoveLiquidity(
+        address sender,
+        PoolKey calldata key,
+        ModifyLiquidityParams calldata params,
+        BalanceDelta delta,
+        BalanceDelta feesAccrued,
+        bytes calldata hookData
+    ) external onlyPoolManager returns (bytes4, BalanceDelta) {
+        revert HookNotImplemented();
+    }
 
-    // function beforeDonate(
-    //     address sender,
-    //     PoolKey calldata key,
-    //     uint256 amount0,
-    //     uint256 amount1,
-    //     bytes calldata hookData
-    // ) external onlyPoolManager returns (bytes4) {
-    //     revert HookNotImplemented();
-    // }
+    function beforeDonate(
+        address sender,
+        PoolKey calldata key,
+        uint256 amount0,
+        uint256 amount1,
+        bytes calldata hookData
+    ) external onlyPoolManager returns (bytes4) {
+        revert HookNotImplemented();
+    }
 
-    // function afterDonate(
-    //     address sender,
-    //     PoolKey calldata key,
-    //     uint256 amount0,
-    //     uint256 amount1,
-    //     bytes calldata hookData
-    // ) external onlyPoolManager returns (bytes4) {
-    //     revert HookNotImplemented();
-    // }
+    function afterDonate(
+        address sender,
+        PoolKey calldata key,
+        uint256 amount0,
+        uint256 amount1,
+        bytes calldata hookData
+    ) external onlyPoolManager returns (bytes4) {
+        revert HookNotImplemented();
+    }
 
 
-    // function setMlaunch(address _mlaunchContract) public {
-    //     mlaunchContract = IMLaunch(_mlaunchContract);
-    // }
+    function setMlaunch(address _mlaunchContract) public {
+        mlaunchContract = IMLaunch(_mlaunchContract);
+    }
 
 }

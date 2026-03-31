@@ -16,14 +16,16 @@ import {Hooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
 contract DeployMLaunch is Script, Deployers{
 
     PoolManager internal poolManager;
+    /// @dev Foundry CREATE2 Deployer Proxy used in scripts.
+    address internal constant CREATE2_DEPLOYER_PROXY = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
 
 
-    function run() external returns(MLaunch){
+    function run() external returns(MLaunch, PositionManager, PoolManager){
         return deployContracts();
     }
 
-    function deployContracts () internal returns(MLaunch){
+    function deployContracts () internal returns(MLaunch, PositionManager, PoolManager){
         vm.startBroadcast();
 
         poolManager = new PoolManager(msg.sender);
@@ -40,16 +42,15 @@ contract DeployMLaunch is Script, Deployers{
         console2.log('PositionManager deployed at: ', address(positionManager));
 
 
-        return mlaunch;
+        return (mlaunch, positionManager, poolManager);
     }
 
     function findSalt() public returns (bytes32) {
         (address addr, bytes32 salt) = find(
-            msg.sender,
+            CREATE2_DEPLOYER_PROXY,
             type(PositionManager).creationCode,
-            abi.encode(poolManager),
-            uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
-            )
+            abi.encode(address(poolManager)),
+            uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG)
         );
         return salt;
 

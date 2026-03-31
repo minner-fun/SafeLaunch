@@ -14,7 +14,7 @@ contract MLaunchTest is Test {
 
     function setUp() external {
         DeployMLaunch delpy = new DeployMLaunch();
-        s_mlaunch = delpy.run();
+        (s_mlaunch,, ) = delpy.run();
     }
 
     function testMLaunchName() public view {

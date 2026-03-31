@@ -61,7 +61,7 @@ contract MLaunch is ERC721, IMLaunch {
     function mlaunch(PositionManager.MLaunchParams calldata _params)
         external
         override
-        onlyPositionManager
+        // onlyPositionManager
         returns (address memecoin_, uint256 tokenId_)
     {
         if (_params.mlaunchAt > block.timestamp + MAX_SCHEDULE_DURATION) {
