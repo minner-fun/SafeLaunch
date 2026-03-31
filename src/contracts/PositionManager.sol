@@ -13,8 +13,10 @@ import {StateLibrary} from '@uniswap/v4-core/src/libraries/StateLibrary.sol';
 
 import {BaseHook} from '@uniswap/v4-periphery/src/base/hooks/BaseHook.sol';
 
+import {IMLaunch} from "src/interfaces/IMLaunch.sol";
 
-contract PositionManager is BaseHook {
+
+contract PositionManager{
 
 
     struct MLaunchParams {
@@ -31,13 +33,21 @@ contract PositionManager is BaseHook {
     }
 
     address nativeToken = address(0);
+    IMLaunch public mlaunchContract;
+    IPoolManager public immutable poolManager;
 
-    event PoolCreated(PoolId indexed _poolId, address _memecoin, uint _tokenId, bool _currencyFlipped, uint _flaunchFee, MLaunchParams _params);
+
+    // modifier onlyPoolManager() {
+    //     if (msg.sender != address(poolManager)) revert NotPoolManager();
+    //     _;
+    // }
+
+    event PoolCreated(PoolId indexed _poolId, address _memecoin, uint _tokenId, bool _currencyFlipped, MLaunchParams _params);
 
 
     constructor(address _poolManager) {
         poolManager = IPoolManager(_poolManager);
-        Hooks.validateHookPermissions(address(this), getHookPermissions());
+        // Hooks.validateHookPermissions(address(this), getHookPermissions());
     }
 
     function getHookPermissions()
@@ -67,7 +77,7 @@ contract PositionManager is BaseHook {
         uint tokenId;
         // address payable memecoinTreasury;
 
-        (memecoin_, tokenId) = flaunchContract.flaunch(_params);   // tokenId是nft的id
+        (memecoin_, tokenId) = mlaunchContract.mlaunch(_params);   // tokenId是nft的id
 
 
 
@@ -101,7 +111,7 @@ contract PositionManager is BaseHook {
             _memecoin: memecoin_,
             _tokenId: tokenId,
             _currencyFlipped: currencyFlipped,
-            _flaunchFee: flaunchFee,
+            // _flaunchFee: flaunchFee,
             _params: _params
         });
 
@@ -110,14 +120,14 @@ contract PositionManager is BaseHook {
 
 
 
-        uint160 sqrtPriceX96 = initialPrice.getSqrtPriceX96(msg.sender, currencyFlipped, _params.initialPriceParams);
+        // uint160 sqrtPriceX96 = initialPrice.getSqrtPriceX96(msg.sender, currencyFlipped, _params.initialPriceParams);
         
-        // Initialize our memecoin with the sqrtPriceX96
-        // 初始化我们的memecoin与sqrtPriceX96， sqrtPriceX96表示价格的开方后乘以2的96次方
-        int24 initialTick = poolManager.initialize(   // 初始化池，返回初始tick
-            _poolKey,
-            sqrtPriceX96
-        );
+        // // Initialize our memecoin with the sqrtPriceX96
+        // // 初始化我们的memecoin与sqrtPriceX96， sqrtPriceX96表示价格的开方后乘以2的96次方
+        // int24 initialTick = poolManager.initialize(   // 初始化池，返回初始tick
+        //     _poolKey,
+        //     sqrtPriceX96
+        // );
         
 
         // fairLaunch.createPosition({
@@ -143,8 +153,109 @@ contract PositionManager is BaseHook {
     }
 
 
-    function setFlaunch(address _flaunchContract) public onlyOwner {
-        flaunchContract = IFlaunch(_flaunchContract);
-    }
+    //     function beforeInitialize(
+    //     address sender,
+    //     PoolKey calldata key,
+    //     uint160 sqrtPriceX96
+    // ) external onlyPoolManager returns (bytes4) {
+    //     revert HookNotImplemented();
+    // }
+
+    // function afterInitialize(
+    //     address sender,
+    //     PoolKey calldata key,
+    //     uint160 sqrtPriceX96,
+    //     int24 tick
+    // ) external onlyPoolManager returns (bytes4) {
+    //     revert HookNotImplemented();
+    // }
+
+    // function beforeSwap(
+    //     address sender,
+    //     PoolKey calldata key,
+    //     SwapParams calldata params,
+    //     bytes calldata hookData
+    // ) external onlyPoolManager returns (bytes4, BeforeSwapDelta, uint24) {
+    //     counts[key.toId()]["beforeSwap"] += 1;
+    //     return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
+    // }
+
+    // function afterSwap(
+    //     address sender,
+    //     PoolKey calldata key,
+    //     SwapParams calldata params,
+    //     BalanceDelta delta,
+    //     bytes calldata hookData
+    // ) external onlyPoolManager returns (bytes4, int128) {
+    //     counts[key.toId()]["afterSwap"] += 1;
+    //     return (this.afterSwap.selector, 0);
+    // }
+
+    // function beforeAddLiquidity(
+    //     address sender,
+    //     PoolKey calldata key,
+    //     ModifyLiquidityParams calldata params,
+    //     bytes calldata hookData
+    // ) external onlyPoolManager returns (bytes4) {
+    //     counts[key.toId()]["beforeAddLiquidity"] += 1;
+    //     return this.beforeAddLiquidity.selector;
+    // }
+
+    // function afterAddLiquidity(
+    //     address sender,
+    //     PoolKey calldata key,
+    //     ModifyLiquidityParams calldata params,
+    //     BalanceDelta delta,
+    //     BalanceDelta feesAccrued,
+    //     bytes calldata hookData
+    // ) external onlyPoolManager returns (bytes4, BalanceDelta) {
+    //     revert HookNotImplemented();
+    // }
+
+    // function beforeRemoveLiquidity(
+    //     address sender,
+    //     PoolKey calldata key,
+    //     ModifyLiquidityParams calldata params,
+    //     bytes calldata hookData
+    // ) external onlyPoolManager returns (bytes4) {
+    //     counts[key.toId()]["beforeRemoveLiquidity"] += 1;
+    //     return this.beforeRemoveLiquidity.selector;
+    // }
+
+    // function afterRemoveLiquidity(
+    //     address sender,
+    //     PoolKey calldata key,
+    //     ModifyLiquidityParams calldata params,
+    //     BalanceDelta delta,
+    //     BalanceDelta feesAccrued,
+    //     bytes calldata hookData
+    // ) external onlyPoolManager returns (bytes4, BalanceDelta) {
+    //     revert HookNotImplemented();
+    // }
+
+    // function beforeDonate(
+    //     address sender,
+    //     PoolKey calldata key,
+    //     uint256 amount0,
+    //     uint256 amount1,
+    //     bytes calldata hookData
+    // ) external onlyPoolManager returns (bytes4) {
+    //     revert HookNotImplemented();
+    // }
+
+    // function afterDonate(
+    //     address sender,
+    //     PoolKey calldata key,
+    //     uint256 amount0,
+    //     uint256 amount1,
+    //     bytes calldata hookData
+    // ) external onlyPoolManager returns (bytes4) {
+    //     revert HookNotImplemented();
+    // }
+
+
+    // function setMlaunch(address _mlaunchContract) public {
+    //     mlaunchContract = IMLaunch(_mlaunchContract);
+    // }
 
 }
