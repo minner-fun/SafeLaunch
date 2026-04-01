@@ -3,11 +3,22 @@ pragma solidity ^0.8.26;
 
 import {IPoolManager, PoolManager} from '@uniswap/v4-core/src/PoolManager.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
+import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
+import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
+
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
+
+import {SafeCast} from '@uniswap/v4-core/src/libraries/SafeCast.sol';
+import {TickMath} from '@uniswap/v4-core/src/libraries/TickMath.sol';
+import {LiquidityAmounts} from '@uniswap/v4-core/test/utils/LiquidityAmounts.sol';
+
+import {CurrencySettler} from 'src/contracts/libraries/CurrencySettler.sol';
 
 contract FairLaunch {
 
-
+    using SafeCast for *;
+    using PoolIdLibrary for PoolKey;
+    using CurrencySettler for Currency;
     IPoolManager poolManager;
 
 
@@ -54,13 +65,13 @@ contract FairLaunch {
         return _fairLaunchInfo[_poolId];
     }
 
-    function closedPosition(
-        PoolKey memeory _poolKey,
-        uint _tokenFees,
-        bool _nativeIsZero
-    ) public returns (FairLaunchInfo memory){
+    // function closedPosition(
+    //     PoolKey memeory _poolKey,
+    //     uint _tokenFees,
+    //     bool _nativeIsZero
+    // ) public returns (FairLaunchInfo memory){
 
-    }
+    // }
 
     function _createImmutablePosition(
         PoolKey memory _poolKey,
@@ -69,7 +80,40 @@ contract FairLaunch {
         uint _tokens,
         bool _tokenIsZero
     ) internal {
-        
+        uint128 liquidityDelta = _tokenIsZero ? LiquidityAmounts.getLiquidityForAmount0({
+            sqrtPriceAX96: TickMath.getSqrtPriceAtTick(_tickLower),
+            sqrtPriceBX96: TickMath.getSqrtPriceAtTick(_tickUpper),
+            amount0: _tokens
+        }) : LiquidityAmounts.getLiquidityForAmount1({
+            sqrtPriceAX96: TickMath.getSqrtPriceAtTick(_tickLower),
+            sqrtPriceBX96: TickMath.getSqrtPriceAtTick(_tickUpper),
+            amount1: _tokens
+        });
+
+        if (liquidityDelta == 0){
+            return;
+        }
+
+        (BalanceDelta delta, ) = poolManager.modifyLiquidity({
+            key: _poolKey,
+            params: IPoolManager.ModifyLiquidityParams({
+                tickLower: _tickLower,
+                tickUpper: _tickUpper,
+                liquidityDelta: liquidityDelta.toInt128(),
+                salt: ''
+            }),
+            hookData: ''
+        });
+
+        if (delta.amount0() < 0){
+            _poolKey.currency0.settle(poolManager, msg.sender, uint(-int(delta.amount0())), false); // settle方法是在CurrencySettle中定义的，其中包含了sync的步骤
+        }
+
+        if (delta.amount1() < 0){
+            _poolKey.currency1.settle(poolManager, msg.sender, uint(-int(delta.amount1())), false);
+        }
+
+
     }
 
 }
