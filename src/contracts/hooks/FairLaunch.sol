@@ -14,11 +14,16 @@ import {LiquidityAmounts} from '@uniswap/v4-core/test/utils/LiquidityAmounts.sol
 
 import {CurrencySettler} from 'src/contracts/libraries/CurrencySettler.sol';
 
+import {TickFinder} from 'src/contracts/types/TickFinder.sol';
+
 contract FairLaunch {
 
     using SafeCast for *;
     using PoolIdLibrary for PoolKey;
     using CurrencySettler for Currency;
+    using TickFinder for int24;
+
+
     IPoolManager poolManager;
 
 
@@ -34,7 +39,7 @@ contract FairLaunch {
     mapping(PoolId _poolId => FairLaunchInfo _info) internal _fairLaunchInfo;
 
     event FairLaunchCreated(PoolId indexed _poolId, uint _tokens, uint _startAt, uint _endsAt);
-
+    event FairLaunchEnded(PoolId indexed _poolId, uint _revenue, uint _supply, uint _endedAt);
     constructor(IPoolManager _poolManager){
         poolManager = _poolManager;
     }
@@ -64,14 +69,41 @@ contract FairLaunch {
 
         return _fairLaunchInfo[_poolId];
     }
+    /**
+     * @dev 关闭fairlaunch，在uni pool中创建仓位。创建两个单边流动性，eth侧用所有的fair期间的收益eth创建，emme侧用余下的创建
+     */
+    function closedPosition(
+        PoolKey memory _poolKey,
+        uint _tokenFees,
+        bool _nativeIsZero) public returns (FairLaunchInfo memory){
+        FairLaunchInfo storage info = _fairLaunchInfo[_poolKey.toId()];
+        int24 tickLower;
+        int24 tickUpper;
 
-    // function closedPosition(
-    //     PoolKey memeory _poolKey,
-    //     uint _tokenFees,
-    //     bool _nativeIsZero
-    // ) public returns (FairLaunchInfo memory){
+        if (_nativeIsZero){  // 0是eth，标准的形态，tick表示的是eth的价格，所以，对于meme来说，meme的最低价对应 此刻的tickUpper。
+            tickLower = (info.initialTick +1).validTick(false);  //往大了找，找到一个符合的tick   在高于initialTick的一个spacing区间里添加eth的单边流动性。
+            tickUpper = tickLower + TickFinder.TICK_SPACING;  // TICK_SPACING = 60
+            _createImmutablePosition(_poolKey, tickLower, tickUpper, info.revenue, true);
 
-    // }
+            tickLower = TickFinder.MIN_TICK;  // 在最小tick到小于initialTick一个spacing的地方添加所有剩余的meme代币。单边流动性。
+            tickUpper = (info.initialTick -1).validTick(true);
+            _createImmutablePosition(_poolKey, tickLower, tickUpper, _poolKey.currency1.balanceOf(msg.sender) - _tokenFees - info.supply, false);
+        }else{
+            tickUpper = (info.initialTick -1).validTick(true);
+            tickLower = tickUpper - TickFinder.TICK_SPACING;
+            _createImmutablePosition(_poolKey, tickLower, tickUpper, info.revenue, false);
+
+            tickLower = (info.initialTick +1).validTick(false);
+            tickUpper = TickFinder.MAX_TICK;
+            _createImmutablePosition(_poolKey, tickLower, tickUpper, _poolKey.currency0.balanceOf(msg.sender) - _tokenFees - info.supply, true);
+
+        }
+        info.endsAt = block.timestamp;
+        info.closed = true;
+
+        emit FairLaunchEnded(_poolKey.toId(), info.revenue, info.supply, info.endsAt);
+        return info;
+    }
 
     function _createImmutablePosition(
         PoolKey memory _poolKey,
