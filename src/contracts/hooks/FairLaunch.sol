@@ -8,6 +8,8 @@ import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
 
+import {FullMath} from '@uniswap/v4-core/src/libraries/FullMath.sol';
+
 import {SafeCast} from '@uniswap/v4-core/src/libraries/SafeCast.sol';
 import {TickMath} from '@uniswap/v4-core/src/libraries/TickMath.sol';
 import {LiquidityAmounts} from '@uniswap/v4-core/test/utils/LiquidityAmounts.sol';
@@ -69,6 +71,34 @@ contract FairLaunch {
 
         return _fairLaunchInfo[_poolId];
     }
+
+    function fillFromPositiom(
+        PoolKey memory _poolKey,
+        int _amountSpecified,     // 负数，表示输入是精确的，正，表示输出是精确的
+        bool _nativeIsZero
+    ) public returns(
+        BeforeSwapDelta beforeSwapDelta_,
+        BalanceDelta balanceDelta_,
+        FairLaunchInfo memory fairLaunchInfo
+    ){
+        PoolId poolId = _poolKey.toId();
+        FairLaunchInfo storage info = _fairLaunchInfo[poolId];
+
+        if (_amountSpecified == 0){
+            return(beforeSwapDelta_, balanceDelta_, info);
+        }
+
+        uint ethIn;
+        uint tokensOut;
+
+        if (_amountSpecified < 0){
+            ethIn = uint(-_amountSpecified);
+
+        }
+
+    }
+
+
     /**
      * @dev 关闭fairlaunch，在uni pool中创建仓位。创建两个单边流动性，eth侧用所有的fair期间的收益eth创建，emme侧用余下的创建
      */
@@ -144,8 +174,28 @@ contract FairLaunch {
         if (delta.amount1() < 0){
             _poolKey.currency1.settle(poolManager, msg.sender, uint(-int(delta.amount1())), false);
         }
+    }
 
-
+    function _getQuoteAtTick(
+        int24 _tick, 
+        uint _baseAmount,
+        address _baseToken,
+        address _quoteToken
+    ) internal pure returns(
+        uint quoteAmount_
+    ){
+        uint160 sqrtPriceX96 = TickMath.getSqrtPriceAtTick(_tick);
+        if (sqrtPriceX96 <= type(uint128).max){
+            uint ratioX192 = uint(sqrtPriceX96) * sqrtPriceX96;
+            quoteAmount_ = _baseToken < _quoteToken
+                ? FullMath.mulDiv(ratioX192, _baseAmount, 1<<192)  // mulDiv  就是前两个参数相乘，然后÷最后一个参数
+                : FullMath.mulDiv(1<<192, _baseAmount, ratioX192);
+        }else{
+            uint ratioX128 = FullMath.mulDiv(sqrtPriceX96 , sqrtPriceX96, 1<<64);
+            quoteAmount_ = _baseAmount < _quoteToken
+                ? FullMath.mulDiv(ratioX128, _baseAmount, 11<< 128)
+                : FullMath.mulDiv(1<<128, _baseAmount, ratioX128);
+        }
     }
 
 }
