@@ -3,7 +3,9 @@ pragma solidity ^0.8.26;
 
 import {IPoolManager, PoolManager} from '@uniswap/v4-core/src/PoolManager.sol';
 import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
-import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
+import {BalanceDelta, toBalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
+import {BeforeSwapDelta, toBeforeSwapDelta} from '@uniswap/v4-core/src/types/BeforeSwapDelta.sol';
+
 import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
 
 import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
@@ -93,8 +95,40 @@ contract FairLaunch {
 
         if (_amountSpecified < 0){
             ethIn = uint(-_amountSpecified);
-
+            tokensOut = _getQuoteAtTick(
+                info.initialTick,
+                ethIn,
+                Currency.unwrap(_nativeIsZero ? _poolKey.currency0 : _poolKey.currency1),
+                Currency.unwrap(_nativeIsZero ? _poolKey.currency1 : _poolKey.currency0)
+            );
+        }else{
+            tokensOut = uint(_amountSpecified);
+            ethIn = _getQuoteAtTick(
+                info.initialTick,
+                tokensOut,
+                Currency.unwrap(!_nativeIsZero ? _poolKey.currency0 : _poolKey.currency1),
+                Currency.unwrap(!_nativeIsZero ? _poolKey.currency1 : _poolKey.currency0)
+            );
         }
+
+        if (tokensOut > info.supply){
+            uint percentage = info.supply * 1e18 / tokensOut;        // 乘以1e18为了保护精度
+            ethIn = (ethIn * percentage) / 1e18;
+            tokensOut = info.supply;
+        }
+
+        beforeSwapDelta_ = (_amountSpecified < 0)                         // _amountSpecified的正 表示这个_amountSpecified的值 指得是输出的token数量，负表示的输入的数量
+            ? toBeforeSwapDelta(ethIn.toInt128(), -tokensOut.toInt128())  // BeforeSwapDelta  规定前128位位指定的token的数量，后128位为非指定
+            : toBeforeSwapDelta(-tokensOut.toInt128(), ethIn.toInt128());  // 对于-tokenOut的负号，表示是要给出去的。符合settle，take的正负规则。
+        balanceDelta_ = toBalanceDelta(                                    
+            _nativeIsZero ? ethIn.toInt128() : -tokensOut.toInt128(),   // balanceDelta, 前128是token0，后128是token1
+            _nativeIsZero ? -tokensOut.toInt128() : ethIn.toInt128()
+        );
+
+        info.revenue += ethIn;
+        info.supply -= tokensOut;
+
+        return (beforeSwapDelta_, balanceDelta_, info);
 
     }
 
@@ -185,14 +219,14 @@ contract FairLaunch {
         uint quoteAmount_
     ){
         uint160 sqrtPriceX96 = TickMath.getSqrtPriceAtTick(_tick);
-        if (sqrtPriceX96 <= type(uint128).max){
+        if (sqrtPriceX96 <= type(uint128).max){                    // 判断sqrtPriceX96是不是小于uint128,因为接下来要算sqrtPriceX96 的平方，防止平方后超过uint256。溢出
             uint ratioX192 = uint(sqrtPriceX96) * sqrtPriceX96;
             quoteAmount_ = _baseToken < _quoteToken
                 ? FullMath.mulDiv(ratioX192, _baseAmount, 1<<192)  // mulDiv  就是前两个参数相乘，然后÷最后一个参数
                 : FullMath.mulDiv(1<<192, _baseAmount, ratioX192);
         }else{
-            uint ratioX128 = FullMath.mulDiv(sqrtPriceX96 , sqrtPriceX96, 1<<64);
-            quoteAmount_ = _baseAmount < _quoteToken
+            uint ratioX128 = FullMath.mulDiv(sqrtPriceX96 , sqrtPriceX96, 1<<64); // 其实是 Price X192,Price已经拿到了，然后把X192缩小一下到X128
+            quoteAmount_ = _baseToken < _quoteToken
                 ? FullMath.mulDiv(ratioX128, _baseAmount, 11<< 128)
                 : FullMath.mulDiv(1<<128, _baseAmount, ratioX128);
         }
