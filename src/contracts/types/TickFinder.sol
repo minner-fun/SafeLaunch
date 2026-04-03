@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-
 /**
  * A helper library that finds the next valid tick for the specified tick spacing, starting
  * from a single tick. This will allow us to round up or down to find it and also supports
@@ -12,7 +11,6 @@ pragma solidity ^0.8.26;
  * @dev This is used by `using TickFinder for int24;`
  */
 library TickFinder {
-
     /// The valid tick spacing value for the pool 池的合法tick间隔值
     int24 internal constant TICK_SPACING = 60;
 
@@ -48,5 +46,4 @@ library TickFinder {
             return tick_ + TICK_SPACING;
         }
     }
-
 }

@@ -7,14 +7,13 @@ import {DeployMLaunch} from "script/DeployMLaunch.s.sol";
 import {MLaunch} from "src/contracts/MLaunch.sol";
 
 contract MLaunchTest is Test {
-
-    string ml_name = 'Mlaunch';
-    string ml_symbol = 'MLAUNCH';
+    string ml_name = "Mlaunch";
+    string ml_symbol = "MLAUNCH";
     MLaunch s_mlaunch;
 
     function setUp() external {
         DeployMLaunch delpy = new DeployMLaunch();
-        (s_mlaunch,, ) = delpy.run();
+        (s_mlaunch,,) = delpy.run();
     }
 
     function testMLaunchName() public view {
@@ -26,5 +25,4 @@ contract MLaunchTest is Test {
         string memory _symbol = s_mlaunch.symbol();
         vm.assertEq(ml_symbol, _symbol);
     }
-
 }

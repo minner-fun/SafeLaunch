@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Currency} from '@uniswap/v4-core/src/types/Currency.sol';
-import {IERC20Minimal} from '@uniswap/v4-core/src/interfaces/external/IERC20Minimal.sol';
-import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
-
+import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+import {IERC20Minimal} from "@uniswap/v4-core/src/interfaces/external/IERC20Minimal.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 
 /**
  * Library used to interact with PoolManager.sol to settle any open deltas:
@@ -14,7 +13,6 @@ import {IPoolManager} from '@uniswap/v4-core/src/interfaces/IPoolManager.sol';
  * @dev Note that sync() is called before any erc-20 transfer in `settle`.
  */
 library CurrencySettler {
-
     /**
      * Settle (pay) a currency to the PoolManager.
      * 结算（支付）一种货币到池管理器。
@@ -24,7 +22,7 @@ library CurrencySettler {
      * @param amount Amount to send 要发送的数量
      * @param burn If true, burn the ERC-6909 token, otherwise ERC20-transfer to the PoolManager 如果为true，燃烧ERC-6909代币，否则ERC20-transfer到池管理器
      */
-    function settle(Currency currency, IPoolManager manager, address payer, uint amount, bool burn) internal {
+    function settle(Currency currency, IPoolManager manager, address payer, uint256 amount, bool burn) internal {
         // For native currencies or burns, calling sync is not required 对于原生货币或燃烧，调用sync是不必要的
         // short circuit for ERC-6909 burns to support ERC-6909-wrapped native tokens 短路用于ERC-6909燃烧以支持ERC-6909包装的原生代币
         if (burn) {
@@ -55,8 +53,7 @@ library CurrencySettler {
      * @param amount Amount to receive
      * @param claims If true, mint the ERC-6909 token, otherwise ERC20-transfer from the PoolManager to recipient
      */
-    function take(Currency currency, IPoolManager manager, address recipient, uint amount, bool claims) internal {
+    function take(Currency currency, IPoolManager manager, address recipient, uint256 amount, bool claims) internal {
         claims ? manager.mint(recipient, currency.toId(), amount) : manager.take(currency, recipient, amount);
     }
-
 }

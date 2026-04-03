@@ -7,16 +7,16 @@ import {IMemecoin} from "src/interfaces/IMemecoin.sol";
 
 import {MLaunch} from "src/contracts/MLaunch.sol";
 import {PositionManager} from "src/contracts/PositionManager.sol";
-import {IPoolManager, PoolManager} from '@uniswap/v4-core/src/PoolManager.sol';
-import {PoolId, PoolIdLibrary} from '@uniswap/v4-core/src/types/PoolId.sol';
-import {Hooks} from 'src/contracts/libraries/Hooks.sol';
-import {PoolKey} from '@uniswap/v4-core/src/types/PoolKey.sol';
-import {IHooks} from '@uniswap/v4-core/src/libraries/Hooks.sol';
-import {BalanceDelta} from '@uniswap/v4-core/src/types/BalanceDelta.sol';
+import {IPoolManager, PoolManager} from "@uniswap/v4-core/src/PoolManager.sol";
+import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
+import {Hooks} from "src/contracts/libraries/Hooks.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {IHooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
+import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 
-import {SwapParams, ModifyLiquidityParams} from 'src/contracts/types/PoolOperation.sol';
+import {SwapParams, ModifyLiquidityParams} from "src/contracts/types/PoolOperation.sol";
 
 import {console2} from "forge-std/Console2.sol";
 
@@ -25,8 +25,8 @@ import {Memecoin} from "../mock/Memecoin.sol";
 contract PositionManagerTest is Test {
     using SafeCast for int256;
 
-    string meme_name  = 'minner';
-    string  meme_symbol = 'MINNER';
+    string meme_name = "minner";
+    string meme_symbol = "MINNER";
     MLaunch mlaunch;
     PositionManager positionManager;
     PoolManager poolManager;
@@ -47,10 +47,13 @@ contract PositionManagerTest is Test {
 
     PoolKey key;
 
-
-    event PoolCreated(PoolId indexed _poolId, address _memecoin, uint _tokenId, bool _currencyFlipped, PositionManager.MLaunchParams _params);
-
-
+    event PoolCreated(
+        PoolId indexed _poolId,
+        address _memecoin,
+        uint256 _tokenId,
+        bool _currencyFlipped,
+        PositionManager.MLaunchParams _params
+    );
 
     function setUp() external {
         DeployMLaunch deploy = new DeployMLaunch();
@@ -63,13 +66,12 @@ contract PositionManagerTest is Test {
     }
 
     function testPositionManagerCanMlaunch() public {
-
-        
         address memecoin_ = positionManager.mlaunch(
             PositionManager.MLaunchParams({
                 name: meme_name,
                 symbol: meme_symbol,
                 initialTokenFairLaunch: 10e20,
+                fairLaunchDuration: 60,
                 creator: msg.sender,
                 mlaunchAt: 0
             })
@@ -77,14 +79,9 @@ contract PositionManagerTest is Test {
 
         memecoin = IMemecoin(memecoin_);
         vm.assertEq(memecoin.name(), meme_name);
-
     }
 
-
-    function unlockCallback(bytes calldata data)
-        external
-        returns (bytes memory)
-    {
+    function unlockCallback(bytes calldata data) external returns (bytes memory) {
         if (action == ADD_LIQUIDITY) {
             (BalanceDelta delta,) = poolManager.modifyLiquidity({
                 key: key,
@@ -149,23 +146,10 @@ contract PositionManagerTest is Test {
             int128 amount0 = delta.amount0();
             int128 amount1 = delta.amount1();
 
-            (
-                Currency currencyIn,
-                Currency currencyOut,
-                uint256 amountIn,
-                uint256 amountOut
-            ) = (
-                key.currency0,
-                key.currency1,
-                int256(-amount0).toUint256(),
-                int256(amount1).toUint256()
-            );
+            (Currency currencyIn, Currency currencyOut, uint256 amountIn, uint256 amountOut) =
+                (key.currency0, key.currency1, int256(-amount0).toUint256(), int256(amount1).toUint256());
 
-            poolManager.take({
-                currency: currencyOut,
-                to: address(this),
-                amount: amountOut
-            });
+            poolManager.take({currency: currencyOut, to: address(this), amount: amountOut});
 
             poolManager.sync(currencyIn);
             poolManager.settle{value: amountIn}();
@@ -176,15 +160,12 @@ contract PositionManagerTest is Test {
     }
 
     function test_liquidity() public {
-
-
-        Memecoin m = new Memecoin('test', 'TEST');
+        Memecoin m = new Memecoin("test", "TEST");
         m.mint(address(this), 1e6 * 1e18);
         memecoin = IMemecoin(address(m));
         // memecoin = IMemecoin(memecoin_);
 
         // deal(memecoin, address(this), 1e6 * 1e6);
-
 
         deal(address(this), 1e6 * 1e18);
 
@@ -196,8 +177,7 @@ contract PositionManagerTest is Test {
             hooks: IHooks(address(positionManager))
         });
 
-        
-        int24 initialTick = poolManager.initialize(   // 初始化池，返回初始tick
+        int24 initialTick = poolManager.initialize( // 初始化池，返回初始tick
             key,
             // sqrtPriceX96
             1e6 * (1 << 96)
@@ -214,8 +194,6 @@ contract PositionManagerTest is Test {
         assertEq(positionManager.counts(key.toId(), "afterRemoveLiquidity"), 0);
     }
 
-
-
     // function testPositionManagerEmitEventWhenMlaunch() public {
 
     //     vm.expectEmit();
@@ -230,10 +208,9 @@ contract PositionManagerTest is Test {
     //             mlaunchAt: 0
     //         })
     //     );
-        
+
     //     IMemecoin memecoin = IMemecoin(memecoin_);
     // }
-
 
     receive() external payable {}
 }

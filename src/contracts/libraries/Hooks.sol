@@ -45,34 +45,21 @@ library Hooks {
 
     error HookAddressNotValid(address hooks);
 
-    function validateHookPermissions(
-        address self,
-        Permissions memory permissions
-    ) internal pure {
+    function validateHookPermissions(address self, Permissions memory permissions) internal pure {
         if (
-            permissions.beforeInitialize
-                != self.hasPermission(BEFORE_INITIALIZE_FLAG)
-                || permissions.afterInitialize
-                    != self.hasPermission(AFTER_INITIALIZE_FLAG)
-                || permissions.beforeAddLiquidity
-                    != self.hasPermission(BEFORE_ADD_LIQUIDITY_FLAG)
-                || permissions.afterAddLiquidity
-                    != self.hasPermission(AFTER_ADD_LIQUIDITY_FLAG)
-                || permissions.beforeRemoveLiquidity
-                    != self.hasPermission(BEFORE_REMOVE_LIQUIDITY_FLAG)
-                || permissions.afterRemoveLiquidity
-                    != self.hasPermission(AFTER_REMOVE_LIQUIDITY_FLAG)
+            permissions.beforeInitialize != self.hasPermission(BEFORE_INITIALIZE_FLAG)
+                || permissions.afterInitialize != self.hasPermission(AFTER_INITIALIZE_FLAG)
+                || permissions.beforeAddLiquidity != self.hasPermission(BEFORE_ADD_LIQUIDITY_FLAG)
+                || permissions.afterAddLiquidity != self.hasPermission(AFTER_ADD_LIQUIDITY_FLAG)
+                || permissions.beforeRemoveLiquidity != self.hasPermission(BEFORE_REMOVE_LIQUIDITY_FLAG)
+                || permissions.afterRemoveLiquidity != self.hasPermission(AFTER_REMOVE_LIQUIDITY_FLAG)
                 || permissions.beforeSwap != self.hasPermission(BEFORE_SWAP_FLAG)
                 || permissions.afterSwap != self.hasPermission(AFTER_SWAP_FLAG)
-                || permissions.beforeDonate
-                    != self.hasPermission(BEFORE_DONATE_FLAG)
+                || permissions.beforeDonate != self.hasPermission(BEFORE_DONATE_FLAG)
                 || permissions.afterDonate != self.hasPermission(AFTER_DONATE_FLAG)
-                || permissions.beforeSwapReturnDelta
-                    != self.hasPermission(BEFORE_SWAP_RETURNS_DELTA_FLAG)
-                || permissions.afterSwapReturnDelta
-                    != self.hasPermission(AFTER_SWAP_RETURNS_DELTA_FLAG)
-                || permissions.afterAddLiquidityReturnDelta
-                    != self.hasPermission(AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG)
+                || permissions.beforeSwapReturnDelta != self.hasPermission(BEFORE_SWAP_RETURNS_DELTA_FLAG)
+                || permissions.afterSwapReturnDelta != self.hasPermission(AFTER_SWAP_RETURNS_DELTA_FLAG)
+                || permissions.afterAddLiquidityReturnDelta != self.hasPermission(AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG)
                 || permissions.afterRemoveLiquidityReturnDelta
                     != self.hasPermission(AFTER_REMOVE_LIQUIDITY_RETURNS_DELTA_FLAG)
         ) {
@@ -80,11 +67,7 @@ library Hooks {
         }
     }
 
-    function hasPermission(address self, uint160 flag)
-        internal
-        pure
-        returns (bool)
-    {
+    function hasPermission(address self, uint160 flag) internal pure returns (bool) {
         return uint160(self) & flag != 0;
     }
 }
