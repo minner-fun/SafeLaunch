@@ -18,19 +18,22 @@ import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {BaseHook} from "@uniswap/v4-periphery/src/base/hooks/BaseHook.sol";
 
 import {IMLaunch} from "src/interfaces/IMLaunch.sol";
+import {CurrencySettler} from "src/contracts/libraries/CurrencySettler.sol";
 
 import {SwapParams, ModifyLiquidityParams} from "./types/PoolOperation.sol";
 
 import {FairLaunch} from "src/contracts/hooks/FairLaunch.sol";
-
+import {console2} from "forge-std/console2.sol";
 
 contract PositionManager {
+    using CurrencySettler for Currency;
+
     struct MLaunchParams {
         string name;
         string symbol;
         // string tokenUri;
         uint256 initialTokenFairLaunch;
-        uint fairLaunchDuration;
+        uint256 fairLaunchDuration;
         // uint premineAmount;
         address creator;
         // uint24 creatorFeeAllocation;
@@ -40,16 +43,19 @@ contract PositionManager {
     // bytes feeCalculatorParams;
 
     mapping(PoolId => mapping(string => uint256)) public counts;
-    mapping(PoolId => uint _mlaunchTime) public mlaunchesAt;
+    mapping(PoolId => uint256 _mlaunchTime) public mlaunchesAt;
     address nativeToken = address(0);
     IMLaunch public mlaunchContract;
     IPoolManager public immutable poolManager;
     FairLaunch public fairLaunch;
 
+    address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD; // `dEaD`地址，用于燃烧我们的未售出的memecoin
+
     event PoolCreated(
         PoolId indexed _poolId, address _memecoin, uint256 _tokenId, bool _currencyFlipped, MLaunchParams _params
     );
-    event PoolScheduled(PoolId indexed _poolId, uint _mlaunchesAt);
+    event PoolScheduled(PoolId indexed _poolId, uint256 _mlaunchesAt);
+    event FairLaunchBurn(PoolId indexed _poolId, uint256 _unsoldSupply);
 
     error HookNotImplemented();
     error NotPoolManager();
@@ -106,6 +112,8 @@ contract PositionManager {
         // Set the PoolKey to storage
         // _poolKeys[memecoin_] = _poolKey;   // 存储池key
         PoolId poolId = _poolKey.toId(); // 计算池id
+        console2.log("PositionManager poolId: ");
+        console2.logBytes32(PoolId.unwrap(_poolKey.toId()));
 
         // Check if we have an initial flaunching fee, check that enough ETH has been sent
         // 检查我们是否有初始的flaunching创建费用，检查是否发送了足够的ETH
@@ -172,6 +180,44 @@ contract PositionManager {
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         counts[key.toId()]["beforeSwap"] += 1;
+
+        BeforeSwapDelta beforeSwapDelta_;
+        BalanceDelta fairLaunchFillDelta;
+
+        PoolId poolId = key.toId();
+        uint256 _mlaunchsAt = mlaunchesAt[poolId];
+
+        FairLaunch.FairLaunchInfo memory fairLaunchInfo = fairLaunch.fairLaunchInfo(poolId);
+
+        if (!fairLaunchInfo.closed) {
+            bool nativeIsZero = nativeToken == Currency.unwrap(key.currency0);
+
+            if (!fairLaunch.inFairLaunchWindow(poolId)) {
+                // 不在fair窗口期，所以执行关闭
+                fairLaunch.closedPosition({_poolKey: key, _tokenFees: 0, _nativeIsZero: nativeIsZero});
+
+                uint256 unsoldSupply = fairLaunchInfo.supply;
+                if (unsoldSupply != 0) {
+                    (nativeIsZero ? key.currency1 : key.currency0).transfer(BURN_ADDRESS, unsoldSupply);
+                    emit FairLaunchBurn(poolId, unsoldSupply);
+                }
+            } else {
+                // 在fairlaunch窗口期内
+                if (nativeIsZero != params.zeroForOne) {
+                    revert FairLaunch.CannotSellTokenDuringFairLaunch();
+                }
+
+                (beforeSwapDelta_, fairLaunchFillDelta, fairLaunchInfo) =
+                    fairLaunch.fillFromPositiom(key, params.amountSpecified, nativeIsZero);
+
+                _settleDelta(key, fairLaunchFillDelta);
+
+                if (fairLaunchInfo.supply == 0) {
+                    fairLaunch.closedPosition({_poolKey: key, _tokenFees: 0, _nativeIsZero: nativeIsZero});
+                }
+            }
+        }
+
         return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
 
@@ -250,5 +296,19 @@ contract PositionManager {
 
     function setMlaunch(address _mlaunchContract) public {
         mlaunchContract = IMLaunch(_mlaunchContract);
+    }
+
+    function _settleDelta(PoolKey memory _poolKey, BalanceDelta _delta) internal {
+        if (_delta.amount0() < 0) {
+            _poolKey.currency0.settle(poolManager, address(this), uint256(-int256(_delta.amount0())), false);
+        } else if (_delta.amount0() > 0) {
+            poolManager.take(_poolKey.currency0, address(this), uint256(int256(_delta.amount0())));
+        }
+
+        if (_delta.amount1() < 0) {
+            _poolKey.currency1.settle(poolManager, address(this), uint256(-int256(_delta.amount1())), false);
+        } else if (_delta.amount1() > 0) {
+            poolManager.take(_poolKey.currency1, address(this), uint256(int256(_delta.amount1())));
+        }
     }
 }

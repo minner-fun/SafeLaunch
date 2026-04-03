@@ -17,6 +17,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 
 import {SwapParams, ModifyLiquidityParams} from "src/contracts/types/PoolOperation.sol";
+import {FairLaunch} from "src/contracts/hooks/FairLaunch.sol";
 
 import {console2} from "forge-std/Console2.sol";
 
@@ -25,12 +26,14 @@ import {Memecoin} from "../mock/Memecoin.sol";
 contract PositionManagerTest is Test {
     using SafeCast for int256;
 
-    string meme_name = "minner";
-    string meme_symbol = "MINNER";
+    string constant MEME_NAME = "minner";
+    string constant MEME_SYMBOL = "MINNER";
+    uint256 constant INITIAL_TOKEN_FAIRLAUNCH = 10e20;
+    uint256 constant FAIRLAUNCH_DURATION = 60;
     MLaunch mlaunch;
     PositionManager positionManager;
     PoolManager poolManager;
-
+    FairLaunch fairLaunch;
     IMemecoin memecoin;
 
     int24 constant MIN_TICK = -887272;
@@ -46,6 +49,7 @@ contract PositionManagerTest is Test {
     uint256 action;
 
     PoolKey key;
+    address nativeToken = address(0);
 
     event PoolCreated(
         PoolId indexed _poolId,
@@ -57,7 +61,7 @@ contract PositionManagerTest is Test {
 
     function setUp() external {
         DeployMLaunch deploy = new DeployMLaunch();
-        (mlaunch, positionManager, poolManager) = deploy.run();
+        (mlaunch, positionManager, poolManager, fairLaunch) = deploy.run();
         positionManager.setMlaunch(address(mlaunch));
     }
 
@@ -68,17 +72,17 @@ contract PositionManagerTest is Test {
     function testPositionManagerCanMlaunch() public {
         address memecoin_ = positionManager.mlaunch(
             PositionManager.MLaunchParams({
-                name: meme_name,
-                symbol: meme_symbol,
-                initialTokenFairLaunch: 10e20,
-                fairLaunchDuration: 60,
+                name: MEME_NAME,
+                symbol: MEME_SYMBOL,
+                initialTokenFairLaunch: INITIAL_TOKEN_FAIRLAUNCH,
+                fairLaunchDuration: FAIRLAUNCH_DURATION,
                 creator: msg.sender,
                 mlaunchAt: 0
             })
         );
 
         memecoin = IMemecoin(memecoin_);
-        vm.assertEq(memecoin.name(), meme_name);
+        vm.assertEq(memecoin.name(), MEME_NAME);
     }
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
@@ -194,23 +198,37 @@ contract PositionManagerTest is Test {
         assertEq(positionManager.counts(key.toId(), "afterRemoveLiquidity"), 0);
     }
 
-    // function testPositionManagerEmitEventWhenMlaunch() public {
+    function testPositionManagerCanCreateFairLaunchPosition() public {
+        address memecoin_ = positionManager.mlaunch(
+            PositionManager.MLaunchParams({
+                name: MEME_NAME,
+                symbol: MEME_SYMBOL,
+                initialTokenFairLaunch: INITIAL_TOKEN_FAIRLAUNCH,
+                creator: msg.sender,
+                mlaunchAt: 0,
+                fairLaunchDuration: FAIRLAUNCH_DURATION
+            })
+        );
 
-    //     vm.expectEmit();
-    //     emit PoolCreated({});
+        IMemecoin memecoin = IMemecoin(memecoin_);
 
-    //     address memecoin_ = positiomManager.mlaunch(
-    //         PositionManager.MLaunchParams({
-    //             name: meme_name,
-    //             symbol: meme_symbol,
-    //             initialTokenFairLaunch: 10e20,
-    //             creator: msg.sender,
-    //             mlaunchAt: 0
-    //         })
-    //     );
+        bool currencyFlipped = nativeToken >= memecoin_; // 检查我们的池货币是否翻转
 
-    //     IMemecoin memecoin = IMemecoin(memecoin_);
-    // }
+        key = PoolKey({
+            currency0: Currency.wrap(!currencyFlipped ? nativeToken : memecoin_),
+            currency1: Currency.wrap(currencyFlipped ? nativeToken : memecoin_),
+            fee: 0,
+            tickSpacing: 60,
+            hooks: IHooks(address(positionManager))
+        });
+
+        console2.log("Test poolId: ");
+        console2.logBytes32(PoolId.unwrap(key.toId()));
+
+        FairLaunch.FairLaunchInfo memory fairLaunchInfo = fairLaunch.fairLaunchInfo(key.toId());
+
+        assertEq(fairLaunchInfo.endsAt, block.timestamp + FAIRLAUNCH_DURATION);
+    }
 
     receive() external payable {}
 }

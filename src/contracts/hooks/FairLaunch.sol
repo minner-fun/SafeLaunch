@@ -42,8 +42,19 @@ contract FairLaunch {
     event FairLaunchCreated(PoolId indexed _poolId, uint256 _tokens, uint256 _startAt, uint256 _endsAt);
     event FairLaunchEnded(PoolId indexed _poolId, uint256 _revenue, uint256 _supply, uint256 _endedAt);
 
+    error CannotSellTokenDuringFairLaunch();
+
     constructor(IPoolManager _poolManager) {
         poolManager = _poolManager;
+    }
+
+    function fairLaunchInfo(PoolId _poolId) public view returns (FairLaunchInfo memory) {
+        return _fairLaunchInfo[_poolId];
+    }
+
+    function inFairLaunchWindow(PoolId _poolId) public view returns (bool) {
+        FairLaunchInfo memory info = _fairLaunchInfo[_poolId];
+        return block.timestamp >= info.startsAt && block.timestamp <= info.endsAt;
     }
 
     function createPosition(
@@ -115,7 +126,7 @@ contract FairLaunch {
         }
 
         beforeSwapDelta_ = (_amountSpecified < 0) // _amountSpecified的正 表示这个_amountSpecified的值 指得是输出的token数量，负表示的输入的数量
-            ? toBeforeSwapDelta(ethIn.toInt128(), -tokensOut.toInt128()) // BeforeSwapDelta  规定前128位位指定的token的数量，后128位为非指定
+            ? toBeforeSwapDelta(ethIn.toInt128(), -tokensOut.toInt128()) // BeforeSwapDelta  规定前128位为指定的token的数量，后128位为非指定
             : toBeforeSwapDelta(-tokensOut.toInt128(), ethIn.toInt128()); // 对于-tokenOut的负号，表示是要给出去的。符合settle，take的正负规则。
         balanceDelta_ = toBalanceDelta(
             _nativeIsZero ? ethIn.toInt128() : -tokensOut.toInt128(), // balanceDelta, 前128是token0，后128是token1
