@@ -3,7 +3,9 @@ pragma solidity ^0.8.26;
 
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {
-    BeforeSwapDelta, BeforeSwapDeltaLibrary, toBeforeSwapDelta
+    BeforeSwapDelta,
+    BeforeSwapDeltaLibrary,
+    toBeforeSwapDelta
 } from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {IHooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
@@ -208,7 +210,7 @@ contract PositionManager {
                 }
 
                 (beforeSwapDelta_, fairLaunchFillDelta, fairLaunchInfo) =
-                    fairLaunch.fillFromPositiom(key, params.amountSpecified, nativeIsZero);
+                    fairLaunch.fillFromPosition(key, params.amountSpecified, nativeIsZero);
 
                 _settleDelta(key, fairLaunchFillDelta);
 

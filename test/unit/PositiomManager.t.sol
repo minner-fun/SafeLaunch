@@ -139,9 +139,7 @@ contract PositionManagerTest is Test {
             BalanceDelta delta = poolManager.swap({
                 key: key,
                 params: IPoolManager.SwapParams({
-                    zeroForOne: true,
-                    amountSpecified: -(int256(bal)),
-                    sqrtPriceLimitX96: MIN_SQRT_PRICE + 1
+                    zeroForOne: true, amountSpecified: -(int256(bal)), sqrtPriceLimitX96: MIN_SQRT_PRICE + 1
                 }),
                 hookData: ""
             });

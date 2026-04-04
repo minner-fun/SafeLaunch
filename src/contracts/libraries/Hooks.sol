@@ -59,7 +59,8 @@ library Hooks {
                 || permissions.afterDonate != self.hasPermission(AFTER_DONATE_FLAG)
                 || permissions.beforeSwapReturnDelta != self.hasPermission(BEFORE_SWAP_RETURNS_DELTA_FLAG)
                 || permissions.afterSwapReturnDelta != self.hasPermission(AFTER_SWAP_RETURNS_DELTA_FLAG)
-                || permissions.afterAddLiquidityReturnDelta != self.hasPermission(AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG)
+                || permissions.afterAddLiquidityReturnDelta
+                    != self.hasPermission(AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG)
                 || permissions.afterRemoveLiquidityReturnDelta
                     != self.hasPermission(AFTER_REMOVE_LIQUIDITY_RETURNS_DELTA_FLAG)
         ) {

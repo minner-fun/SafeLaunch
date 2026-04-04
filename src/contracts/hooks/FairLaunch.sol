@@ -83,7 +83,7 @@ contract FairLaunch {
         return _fairLaunchInfo[_poolId];
     }
 
-    function fillFromPositiom(
+    function fillFromPosition(
         PoolKey memory _poolKey,
         int256 _amountSpecified, // 负数，表示输入是精确的，正，表示输出是精确的
         bool _nativeIsZero
@@ -125,8 +125,8 @@ contract FairLaunch {
             tokensOut = info.supply;
         }
 
-        beforeSwapDelta_ = (_amountSpecified < 0) // _amountSpecified的正 表示这个_amountSpecified的值 指得是输出的token数量，负表示的输入的数量
-            ? toBeforeSwapDelta(ethIn.toInt128(), -tokensOut.toInt128()) // BeforeSwapDelta  规定前128位为指定的token的数量，后128位为非指定
+        beforeSwapDelta_ = (_amountSpecified < 0)  // _amountSpecified的正 表示这个_amountSpecified的值 指得是输出的token数量，负表示的输入的数量
+            ? toBeforeSwapDelta(ethIn.toInt128(), -tokensOut.toInt128())  // BeforeSwapDelta  规定前128位为指定的token的数量，后128位为非指定
             : toBeforeSwapDelta(-tokensOut.toInt128(), ethIn.toInt128()); // 对于-tokenOut的负号，表示是要给出去的。符合settle，take的正负规则。
         balanceDelta_ = toBalanceDelta(
             _nativeIsZero ? ethIn.toInt128() : -tokensOut.toInt128(), // balanceDelta, 前128是token0，后128是token1
@@ -213,10 +213,7 @@ contract FairLaunch {
         (BalanceDelta delta,) = poolManager.modifyLiquidity({
             key: _poolKey,
             params: IPoolManager.ModifyLiquidityParams({
-                tickLower: _tickLower,
-                tickUpper: _tickUpper,
-                liquidityDelta: liquidityDelta.toInt128(),
-                salt: ""
+                tickLower: _tickLower, tickUpper: _tickUpper, liquidityDelta: liquidityDelta.toInt128(), salt: ""
             }),
             hookData: ""
         });
@@ -240,7 +237,7 @@ contract FairLaunch {
             // 判断sqrtPriceX96是不是小于uint128,因为接下来要算sqrtPriceX96 的平方，防止平方后超过uint256。溢出
             uint256 ratioX192 = uint256(sqrtPriceX96) * sqrtPriceX96;
             quoteAmount_ = _baseToken < _quoteToken
-                ? FullMath.mulDiv(ratioX192, _baseAmount, 1 << 192) // mulDiv  就是前两个参数相乘，然后÷最后一个参数
+                ? FullMath.mulDiv(ratioX192, _baseAmount, 1 << 192)  // mulDiv  就是前两个参数相乘，然后÷最后一个参数
                 : FullMath.mulDiv(1 << 192, _baseAmount, ratioX192);
         } else {
             uint256 ratioX128 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, 1 << 64); // 其实是 Price X192,Price已经拿到了，然后把X192缩小一下到X128
