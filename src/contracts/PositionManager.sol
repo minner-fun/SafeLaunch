@@ -208,7 +208,7 @@ contract PositionManager {
                 }
 
                 (beforeSwapDelta_, fairLaunchFillDelta, fairLaunchInfo) =
-                    fairLaunch.fillFromPositiom(key, params.amountSpecified, nativeIsZero);
+                    fairLaunch.fillFromPosition(key, params.amountSpecified, nativeIsZero);
 
                 _settleDelta(key, fairLaunchFillDelta);
 

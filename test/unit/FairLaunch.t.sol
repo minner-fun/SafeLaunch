@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
@@ -24,8 +23,7 @@ import {console2} from "forge-std/Console2.sol";
 
 import {Memecoin} from "../mock/Memecoin.sol";
 
-contract FairLaunchTest is Test{
-
+contract FairLaunchTest is Test {
     MLaunch mlaunch;
     PositionManager positionManager;
     PoolManager poolManager;
@@ -41,14 +39,13 @@ contract FairLaunchTest is Test{
         DeployMLaunch deploy = new DeployMLaunch();
         (mlaunch, positionManager, poolManager, fairLaunch) = deploy.run();
         positionManager.setMlaunch(address(mlaunch));
-        Memecoin m = new Memecoin('test', 'TEST');
+        Memecoin m = new Memecoin("test", "TEST");
         m.mint(address(this), 1e6 * 1e18);
         memecoin = IMemecoin(address(m));
         address memecoin_ = address(memecoin);
         address nativeToken = address(0);
 
         bool currencyFlipped = nativeToken >= memecoin_; // 检查我们的池货币是否翻转
-
 
         poolKey = PoolKey({
             currency0: Currency.wrap(!currencyFlipped ? nativeToken : memecoin_),
@@ -65,11 +62,9 @@ contract FairLaunchTest is Test{
             // sqrtPriceX96
             INITIAL_SQRT_PRICE_X96
         );
-
     }
 
     function testFairLaunchCanCreatePosition() public {
-
         fairLaunch.createPosition({
             _poolId: poolId,
             _initialTick: initialTick,
@@ -87,6 +82,7 @@ contract FairLaunchTest is Test{
         assertEq(info.supply, 10e12);
         assertEq(info.closed, false);
     }
+
     function testFairLaunchWhetherInFairlaunchWindow() public {
         fairLaunch.createPosition({
             _poolId: poolId,
@@ -103,10 +99,8 @@ contract FairLaunchTest is Test{
         inFairLaunchWindow = fairLaunch.inFairLaunchWindow(poolId);
         assertTrue(inFairLaunchWindow);
 
-        
         vm.warp(block.timestamp + 30 + 40 + 1); // 改变时间戳
         inFairLaunchWindow = fairLaunch.inFairLaunchWindow(poolId);
         assertFalse(inFairLaunchWindow);
     }
-
 }

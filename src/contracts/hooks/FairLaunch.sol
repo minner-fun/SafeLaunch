@@ -83,7 +83,7 @@ contract FairLaunch {
         return _fairLaunchInfo[_poolId];
     }
 
-    function fillFromPositiom(
+    function fillFromPosition(
         PoolKey memory _poolKey,
         int256 _amountSpecified, // 负数，表示输入是精确的，正，表示输出是精确的
         bool _nativeIsZero
