@@ -15,6 +15,8 @@ import {IHooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+import {BalanceDelta, toBalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+import {BeforeSwapDelta, toBeforeSwapDelta, BeforeSwapDeltaLibrary} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 
 import {SwapParams, ModifyLiquidityParams} from "src/contracts/types/PoolOperation.sol";
 import {FairLaunch} from "src/contracts/hooks/FairLaunch.sol";
@@ -24,6 +26,9 @@ import {console2} from "forge-std/Console2.sol";
 import {Memecoin} from "../mock/Memecoin.sol";
 
 contract FairLaunchTest is Test {
+
+    using BeforeSwapDeltaLibrary for BeforeSwapDelta;
+
     MLaunch mlaunch;
     PositionManager positionManager;
     PoolManager poolManager;
@@ -33,7 +38,7 @@ contract FairLaunchTest is Test {
     PoolId poolId;
     int24 initialTick;
 
-    uint160 constant INITIAL_SQRT_PRICE_X96 = 1e6 * (1 << 96);
+    uint160 constant INITIAL_SQRT_PRICE_X96 = 10 * (1 << 96);
 
     function setUp() external {
         DeployMLaunch deploy = new DeployMLaunch();
@@ -103,4 +108,54 @@ contract FairLaunchTest is Test {
         inFairLaunchWindow = fairLaunch.inFairLaunchWindow(poolId);
         assertFalse(inFairLaunchWindow);
     }
+
+    function testFairLaunchFillFromPosition() public {
+        fairLaunch.createPosition({
+            _poolId: poolId,
+            _initialTick: initialTick,
+            _mlaunchesAt: block.timestamp + 30,
+            _initialTokenFairLaunch: 10e20,
+            _fairLaunchDuration: 40
+        });
+
+        (BeforeSwapDelta beforeSwapDelta_, BalanceDelta balanceDelta_, FairLaunch.FairLaunchInfo memory fairLaunchInfo) = fairLaunch.fillFromPosition({
+            _poolKey: poolKey,
+            _amountSpecified: -100,
+            _nativeIsZero: true
+        });
+
+        int128 specifiedDelta = beforeSwapDelta_.getSpecifiedDelta();
+        int128 unSpecifiedDelta = beforeSwapDelta_.getUnspecifiedDelta();
+        console2.log('specifiedDelta: ', specifiedDelta);
+        console2.log('unspecifiedDelta: ', unSpecifiedDelta);
+
+        int128 amount0 = balanceDelta_.amount0();
+        int128 amount1 = balanceDelta_.amount1();
+        console2.log('amount0: ', amount0);
+        console2.log('amount1: ', amount1);
+
+        console2.log('revenue: ', fairLaunchInfo.revenue);
+        console2.log('supply: ', fairLaunchInfo.supply);
+
+    }
+
+    function testFairLaunchCanClosedPosition() public {
+        fairLaunch.createPosition({
+            _poolId: poolId,
+            _initialTick: initialTick,
+            _mlaunchesAt: block.timestamp + 30,
+            _initialTokenFairLaunch: 10e20,
+            _fairLaunchDuration: 40
+        });
+
+        poolManager.unlock("");
+        
+        FairLaunch.FairLaunchInfo memory info =  fairLaunch.closedPosition({
+            _poolKey: poolKey,
+            _tokenFees: 1e3,
+            _nativeIsZero: true
+        });
+        assertTrue(info.closed);
+    }
+
 }

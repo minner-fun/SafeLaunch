@@ -128,6 +128,7 @@ contract FairLaunch {
         beforeSwapDelta_ = (_amountSpecified < 0) // _amountSpecified的正 表示这个_amountSpecified的值 指得是输出的token数量，负表示的输入的数量
             ? toBeforeSwapDelta(ethIn.toInt128(), -tokensOut.toInt128()) // BeforeSwapDelta  规定前128位为指定的token的数量，后128位为非指定
             : toBeforeSwapDelta(-tokensOut.toInt128(), ethIn.toInt128()); // 对于-tokenOut的负号，表示是要给出去的。符合settle，take的正负规则。
+        
         balanceDelta_ = toBalanceDelta(
             _nativeIsZero ? ethIn.toInt128() : -tokensOut.toInt128(), // balanceDelta, 前128是token0，后128是token1
             _nativeIsZero ? -tokensOut.toInt128() : ethIn.toInt128()
@@ -245,7 +246,7 @@ contract FairLaunch {
         } else {
             uint256 ratioX128 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, 1 << 64); // 其实是 Price X192,Price已经拿到了，然后把X192缩小一下到X128
             quoteAmount_ = _baseToken < _quoteToken
-                ? FullMath.mulDiv(ratioX128, _baseAmount, 11 << 128)
+                ? FullMath.mulDiv(ratioX128, _baseAmount, 1 << 128)
                 : FullMath.mulDiv(1 << 128, _baseAmount, ratioX128);
         }
     }
