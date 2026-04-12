@@ -22,10 +22,13 @@ import {CurrencySettler} from "src/contracts/libraries/CurrencySettler.sol";
 
 import {SwapParams, ModifyLiquidityParams} from "./types/PoolOperation.sol";
 
+import {InternalSwapPool} from "src/contracts/hooks/InternalSwapPool.sol";
 import {FairLaunch} from "src/contracts/hooks/FairLaunch.sol";
 import {console2} from "forge-std/console2.sol";
 
-contract PositionManager {
+
+
+contract PositionManager is InternalSwapPool {
     using CurrencySettler for Currency;
 
     struct MLaunchParams {
@@ -174,7 +177,7 @@ contract PositionManager {
         revert HookNotImplemented();
     }
 
-    function beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookData)
+    function beforeSwap(address sender, PoolKey calldata key, IPoolManager.SwapParams memory params, bytes calldata hookData)
         external
         onlyPoolManager
         returns (bytes4, BeforeSwapDelta, uint24)
@@ -217,6 +220,9 @@ contract PositionManager {
                 }
             }
         }
+
+        (uint tokenIn, uint tokenOut) = _internalSwap(poolManager, key, params, nativeToken == Currency.unwrap(key.currency0));
+
 
         return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }

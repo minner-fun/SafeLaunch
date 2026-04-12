@@ -20,6 +20,8 @@ import {BeforeSwapDelta, toBeforeSwapDelta, BeforeSwapDeltaLibrary} from "@unisw
 
 import {SwapParams, ModifyLiquidityParams} from "src/contracts/types/PoolOperation.sol";
 import {FairLaunch} from "src/contracts/hooks/FairLaunch.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
+import {TickFinder} from "src/contracts/types/TickFinder.sol";
 
 import {console2} from "forge-std/Console2.sol";
 
@@ -28,6 +30,8 @@ import {Memecoin} from "../mock/Memecoin.sol";
 contract FairLaunchTest is Test {
 
     using BeforeSwapDeltaLibrary for BeforeSwapDelta;
+    using StateLibrary for IPoolManager;
+    using TickFinder for int24;
 
     MLaunch mlaunch;
     PositionManager positionManager;
@@ -46,6 +50,8 @@ contract FairLaunchTest is Test {
         positionManager.setMlaunch(address(mlaunch));
         Memecoin m = new Memecoin("test", "TEST");
         m.mint(address(this), 1e6 * 1e18);
+        m.approve(address(fairLaunch), type(uint256).max);
+
         memecoin = IMemecoin(address(m));
         address memecoin_ = address(memecoin);
         address nativeToken = address(0);
@@ -148,14 +154,45 @@ contract FairLaunchTest is Test {
             _fairLaunchDuration: 40
         });
 
-        poolManager.unlock("");
+        bytes memory info_ = poolManager.unlock("");
         
-        FairLaunch.FairLaunchInfo memory info =  fairLaunch.closedPosition({
-            _poolKey: poolKey,
-            _tokenFees: 1e3,
-            _nativeIsZero: true
-        });
+        FairLaunch.FairLaunchInfo memory info =  abi.decode(info_, (FairLaunch.FairLaunchInfo));
         assertTrue(info.closed);
+
+        // // 计算两个单边仓位的 tick 范围，与 closedPosition 内部逻辑保持一致（_nativeIsZero = true）
+        // // ETH 单边仓位：初始 tick 上方一个 spacing 区间
+        // int24 ethTickLower = (initialTick + 1).validTick(false);
+        // int24 ethTickUpper = ethTickLower + TickFinder.TICK_SPACING;
+        // // MEME 单边仓位：从最小 tick 到初始 tick 下方
+        // int24 memeTickLower = TickFinder.MIN_TICK;
+        // int24 memeTickUpper = (initialTick - 1).validTick(true);
+
+        // // 通过 StateLibrary 查询 fairLaunch 合约在 poolManager 中持有的仓位流动性
+        // // position owner 是 address(fairLaunch)，因为是它调用了 poolManager.modifyLiquidity
+        // (uint128 ethLiquidity,,) = IPoolManager(address(poolManager)).getPositionInfo(
+        //     poolId, address(fairLaunch), ethTickLower, ethTickUpper, bytes32("")
+        // );
+        // (uint128 memeLiquidity,,) = IPoolManager(address(poolManager)).getPositionInfo(
+        //     poolId, address(fairLaunch), memeTickLower, memeTickUpper, bytes32("")
+        // );
+
+        // console2.log("ETH  position tick [%d, %d]", int256(ethTickLower), int256(ethTickUpper));
+        // console2.log("ETH  position liquidity:", ethLiquidity);
+        // console2.log("MEME position tick [%d, %d]", int256(memeTickLower), int256(memeTickUpper));
+        // console2.log("MEME position liquidity:", memeLiquidity);
+
+        // // revenue = 0（公募期间无 swap），ETH 仓位流动性应为 0（_createImmutablePosition 内部会跳过）
+        // assertEq(ethLiquidity, 0, "No ETH revenue => no ETH position");
+        // // 剩余 meme 代币足够，MEME 仓位应有流动性
+        // assertGt(memeLiquidity, 0, "MEME position should have liquidity");
     }
 
+    function unlockCallback(bytes calldata data) external returns(bytes memory info_){
+        FairLaunch.FairLaunchInfo memory info = fairLaunch.closedPosition({
+                    _poolKey: poolKey,
+                    _tokenFees: 1e3,
+                    _nativeIsZero: true
+        });
+        info_ = abi.encode(info);
+    }
 }
